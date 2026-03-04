@@ -45,6 +45,7 @@ private:
     QVBoxLayout *topLayout;
     QLabel *titleLabel;
     QLineEdit *serchLabel;
+    QPushButton *deleteallbtn;
     //下部
     QWidget *historyArea;
     QVBoxLayout *historyLayout;
@@ -56,22 +57,19 @@ private:
 
     void positionToTopRight();
 
-    void dropEvent(QDropEvent *event) override ;
-
     void addHistoryItem(const QString &text,const QImage &image);
 
 private slots:
     void toggleWindow() ;
     void copy() ;
     void onClipboardChanged();
-    void addResource(const QString &text);
-
-    void addResource(const QImage &image);
-
     void showContextMenu(const QPoint &pos);
 
     void editResource() ;
 
+    void onDeleteRecord(int recordId);
+
+    void onTagUpdated(int recordId, const QString &newTag);
 };
 
 

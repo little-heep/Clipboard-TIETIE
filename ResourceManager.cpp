@@ -5,10 +5,12 @@
 // You may need to build the project (run Qt uic code generator) to get "ui_ResourceManager.h" resolved
 
 #include "ResourceManager.h"
-
+#include "DatabaseManager.h"
 #include <QApplication>
 #include <QFile>
 #include <QDebug>
+#include <QGraphicsDropShadowEffect>
+#include <QScrollBar>
 
 ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Resource Manager");
@@ -24,11 +26,16 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     topWidget = new QWidget();
     topLayout = new QVBoxLayout(topWidget);
     titleLabel = new QLabel();
+    QHBoxLayout *hlayout = new QHBoxLayout();
     serchLabel = new QLineEdit();
     serchLabel->setPlaceholderText("🔍 /t+搜索标签...");  // 提示文字
     serchLabel->setClearButtonEnabled(true);       // 启用 Qt 自带的小叉清空按钮
+    deleteallbtn=new QPushButton("🗑");
+    hlayout->addWidget(serchLabel);
+    hlayout->addWidget(deleteallbtn);
+    hlayout->setSpacing(5);
     topLayout->addWidget(titleLabel);
-    topLayout->addWidget(serchLabel);
+    topLayout->addLayout(hlayout);
 
     //下部：剪贴历史记录
     historyArea = new QWidget();
@@ -41,8 +48,6 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     mainlayout->addWidget(historyArea, 1);
     setCentralWidget(centralWidget);
 
-    // 拖拽
-    setAcceptDrops(true);
     // 热键 (Ctrl+N)
     QHotkey *hotkey = new QHotkey(QKeySequence("Ctrl+N"), true, this);
     connect(hotkey, &QHotkey::activated, this, &ResourceManager::toggleWindow);
@@ -62,7 +67,7 @@ ResourceManager::~ResourceManager() {
 }
 
 void ResourceManager::setstyle() {
-    this->setStyleSheet("QWidget { border: 1.5px solid black;background-color: white;}");
+    this->setStyleSheet("border: 1.5px solid black;background-color: white;");
 
     topWidget->setMinimumHeight(70);
     topWidget->setStyleSheet("border-image: url(:/image/title.png) 0 stretch stretch; background-color:none;");
@@ -79,17 +84,14 @@ void ResourceManager::setstyle() {
     QLineEdit {
         border-image:none;
         background: rgba(255,255,255,255);
-        border: 2px solid black;
+        border: 2px outset #8c8c8c;
         border-radius: 20px;
         font-size: 13px;
     }
-
-    /* 模拟内阴影/内描边 */
-    QLineEdit {
-        border: 2px inset #ddd;  /* inset 边框模拟轻微内凹 */
-    }
     )");
     titleLabel->setStyleSheet("border-image: url(:/image/word.png) 0 stretch stretch;");
+    deleteallbtn->setStyleSheet("border: 2px outset #8c8c8c; ;border-image:none;background-color:white;color:black");
+
     historyArea->setStyleSheet("border-image: url(:/image/background.png) 0 stretch stretch; background-color:none;");
     QGraphicsDropShadowEffect *bottonshadow = new QGraphicsDropShadowEffect(historyArea);
     bottonshadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
@@ -100,7 +102,37 @@ void ResourceManager::setstyle() {
     historyLayout->setContentsMargins(8, 13, 8, 8);     // 四周留点边距，看起来更像卡片列表
     historyLayout->setSpacing(15);  // 项之间的垂直间距
     listWidget->setStyleSheet("border-image:none;background-color: rgb(255, 255, 255);");
-
+    listWidget->setSpacing(10);
+    listWidget->verticalScrollBar()->setStyleSheet(
+    // 1. 整体轨道背景：设置为透明或极浅灰，宽度 8px
+    "QScrollBar:vertical {"
+    "    background: transparent;"
+    "    width: 15px;"
+    "    margin: 3px 3px 3px 3px;"
+    "}"
+    // 2. 滑块（中间那个条）：圆角 4px，深灰色
+    "QScrollBar::handle:vertical {"
+    "    background: #000000;"
+    "    min-height: 30px;"
+    "    border-radius: 4px;"
+    "}"
+    // 3. 鼠标悬停在滑块上时：颜色加深
+    "QScrollBar::handle:vertical:hover {"
+    "    background: #a0a0a0;"
+    "}"
+    // 4. 隐藏顶部的“向上箭头”按钮
+    "QScrollBar::sub-line:vertical {"
+    "    height: 0px;"
+    "}"
+    // 5. 隐藏底部的“向下箭头”按钮
+    "QScrollBar::add-line:vertical {"
+    "    height: 0px;"
+    "}"
+    // 6. 轨道剩余部分（滑块上方和下方）：透明
+    "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {"
+    "    background: transparent;"
+    "}"
+    );
 }
 
 void ResourceManager::dragEnterEvent(QDragEnterEvent *event) {
@@ -128,19 +160,6 @@ void ResourceManager::positionToTopRight()
 
     // 移动窗口（注意：最好在窗口已经 resize 好之后调用）
     this->move(x, y);
-}
-
-void ResourceManager::dropEvent(QDropEvent *event) {
-    const QMimeData *mimeData = event->mimeData();
-    if (mimeData->hasUrls()) {
-        QList<QUrl> urls = mimeData->urls();
-        for (const QUrl &url : urls) {
-            if (url.isLocalFile()) {
-                addResource(url.toLocalFile());
-            }
-        }
-        event->acceptProposedAction();
-    }
 }
 
 void ResourceManager::toggleWindow() {
@@ -181,16 +200,6 @@ void ResourceManager::onClipboardChanged() {
     }
 }
 
-void ResourceManager::addResource(const QString &text) {
-
-}
-
-void ResourceManager::addResource(const QImage &image) {
-    //todo:存入数据库
-    listWidget->addItem("Image");
-    images.append(image);
-}
-
 void ResourceManager::showContextMenu(const QPoint &pos) {
     QMenu contextMenu;
     QAction *editAction = new QAction("Edit", &contextMenu);
@@ -210,9 +219,36 @@ void ResourceManager::editResource() {
 
 void ResourceManager::addHistoryItem(const QString &text,const QImage &image)
 {
-    ClipboardItemWidget *itemWidget= new ClipboardItemWidget(text,image, listWidget);
-    QListWidgetItem *item = new QListWidgetItem(listWidget);
-    item->setSizeHint(itemWidget->sizeHint());  // 必须！
+    QDateTime now = QDateTime::currentDateTime();
+    QString initialTag = "无";
+
+    //int recordId = DatabaseManager::instance().addRecord(text, image, now, initialTag);
+    int recordId=1;
+    if (recordId == -1) return;  // 插入失败
+
+
+    auto *item = new QListWidgetItem();
+    listWidget->insertItem(0, item);
+
+    auto *itemWidget = new ClipboardItemWidget(recordId, text, image, now, initialTag, listWidget);
+    // 连接信号
+    connect(itemWidget, &ClipboardItemWidget::requestDelete, this, &ResourceManager::onDeleteRecord);
+    connect(itemWidget, &ClipboardItemWidget::tagChanged, this, &ResourceManager::onTagUpdated);
+
+    item->setSizeHint(itemWidget->sizeHint());
     listWidget->setItemWidget(item, itemWidget);
-    // 可选：item->setFlags(item->flags() | Qt::ItemIsSelectable);
+    listWidget->scrollToTop();
+}
+
+void ResourceManager::onDeleteRecord(int recordId)
+{
+    if (DatabaseManager::instance().deleteRecord(recordId)) {
+        // 从 listWidget 删除对应项（需自己实现查找逻辑）
+        // 例如：遍历 listWidget，找到 itemWidget->getRecordId() == recordId 的那个，removeItemWidget
+    }
+}
+
+void ResourceManager::onTagUpdated(int recordId, const QString &newTag)
+{
+    DatabaseManager::instance().updateTag(recordId, newTag);
 }

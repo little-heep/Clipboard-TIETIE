@@ -12,6 +12,7 @@ find_package(Qt6 COMPONENTS
         Core
         Gui
         Widgets
+        Sql
         REQUIRED)
 
 set(qhotkey_DIR "D:/download/QHotkey/lib/cmake/QHotkey")
@@ -26,11 +27,14 @@ add_executable(Reminder main.cpp
         ClipboardItemWidget.cpp
         ClipboardItemWidget.h
         resources.qrc
+        DatabaseManager.cpp
+        DatabaseManager.h
 )
 target_link_libraries(Reminder
         Qt::Core
         Qt::Gui
         Qt::Widgets
+        Qt6::Sql
         qhotkey
 )
 
