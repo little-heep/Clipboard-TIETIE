@@ -53,19 +53,17 @@ private:
 
 
     void setstyle();
-    void dragEnterEvent(QDragEnterEvent *event) override ;
 
     void positionToTopRight();
-
+    void displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag);
     void addHistoryItem(const QString &text,const QImage &image);
+
+    void loadHistory();
 
 private slots:
     void toggleWindow() ;
     void copy() ;
     void onClipboardChanged();
-    void showContextMenu(const QPoint &pos);
-
-    void editResource() ;
 
     void onDeleteRecord(int recordId);
 

@@ -60,6 +60,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     connect(listWidget, &QListWidget::itemClicked, this, &ResourceManager::copy);
 
     setstyle();
+    loadHistory();
 }
 
 ResourceManager::~ResourceManager() {
@@ -75,7 +76,7 @@ void ResourceManager::setstyle() {
     topshadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
     topshadow->setXOffset(3);              // 水平偏移：正数向右
     topshadow->setYOffset(4);              // 垂直偏移：正数向下（模拟光源在上方）
-    topshadow->setColor(QColor(0, 0, 0, 80));  // 黑色半透明（80/255 透明度，建议 60~120）
+    topshadow->setColor(QColor(0, 0, 0, 200));  // 黑色半透明（80/255 透明度，建议 60~120）
     topWidget->setGraphicsEffect(topshadow);
 
     topLayout->setSpacing(0);
@@ -97,7 +98,7 @@ void ResourceManager::setstyle() {
     bottonshadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
     bottonshadow->setXOffset(3);              // 水平偏移：正数向右
     bottonshadow->setYOffset(4);              // 垂直偏移：正数向下（模拟光源在上方）
-    bottonshadow->setColor(QColor(0, 0, 0, 80));  // 黑色半透明（80/255 透明度，建议 60~120）
+    bottonshadow->setColor(QColor(0, 0, 0, 200));  // 黑色半透明（80/255 透明度，建议 60~120）
     historyArea->setGraphicsEffect(bottonshadow);
     historyLayout->setContentsMargins(8, 13, 8, 8);     // 四周留点边距，看起来更像卡片列表
     historyLayout->setSpacing(15);  // 项之间的垂直间距
@@ -133,12 +134,6 @@ void ResourceManager::setstyle() {
     "    background: transparent;"
     "}"
     );
-}
-
-void ResourceManager::dragEnterEvent(QDragEnterEvent *event) {
-    if (event->mimeData()->hasUrls()) {
-        event->acceptProposedAction();
-    }
 }
 
 void ResourceManager::positionToTopRight()
@@ -192,46 +187,16 @@ void ResourceManager::onClipboardChanged() {
         }
     }
     //添加到剪贴板
-    if (!clipboard->text().isEmpty()) {
-        addHistoryItem(clipboard->text(),QImage());
-    }
-    if (!clipboard->image().isNull()) {
-        addHistoryItem(nullptr,clipboard->image());
-    }
+    addHistoryItem(clipboard->text(), clipboard->image());
 }
 
-void ResourceManager::showContextMenu(const QPoint &pos) {
-    QMenu contextMenu;
-    QAction *editAction = new QAction("Edit", &contextMenu);
-    connect(editAction, &QAction::triggered, this, &ResourceManager::editResource);
-    contextMenu.addAction(editAction);
-    contextMenu.exec(listWidget->mapToGlobal(pos));
-}
-
-void ResourceManager::editResource() {
-    // Edit functionality: You can implement more complex editing here
-    // For now, let's just print the selected resource
-    QListWidgetItem *item = listWidget->currentItem();
-    if (item) {
-        qDebug() << "Editing resource:" << item->text();
-    }
-}
-
-void ResourceManager::addHistoryItem(const QString &text,const QImage &image)
+void ResourceManager::displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag)
 {
-    QDateTime now = QDateTime::currentDateTime();
-    QString initialTag = "无";
-
-    //int recordId = DatabaseManager::instance().addRecord(text, image, now, initialTag);
-    int recordId=1;
-    if (recordId == -1) return;  // 插入失败
-
-
     auto *item = new QListWidgetItem();
+    // 历史记录加载建议：因为 SQL 是 ASC 排序，新解析出来的放在最上面
     listWidget->insertItem(0, item);
 
-    auto *itemWidget = new ClipboardItemWidget(recordId, text, image, now, initialTag, listWidget);
-    // 连接信号
+    auto *itemWidget = new ClipboardItemWidget(id, text, image, time, tag);
     connect(itemWidget, &ClipboardItemWidget::requestDelete, this, &ResourceManager::onDeleteRecord);
     connect(itemWidget, &ClipboardItemWidget::tagChanged, this, &ResourceManager::onTagUpdated);
 
@@ -240,15 +205,47 @@ void ResourceManager::addHistoryItem(const QString &text,const QImage &image)
     listWidget->scrollToTop();
 }
 
+void ResourceManager::addHistoryItem(const QString &text,const QImage &image)
+{
+    QDateTime now = QDateTime::currentDateTime();
+    QString initialTag = "无";
+
+    // 1. 存入数据库
+    int recordId = DatabaseManager::instance().addRecord(text, image, now, initialTag);
+    if (recordId == -1) return;
+
+    // 2. 调用展示逻辑
+    displayExistingRecord(recordId, text, image, now, initialTag);
+}
+
 void ResourceManager::onDeleteRecord(int recordId)
 {
     if (DatabaseManager::instance().deleteRecord(recordId)) {
-        // 从 listWidget 删除对应项（需自己实现查找逻辑）
-        // 例如：遍历 listWidget，找到 itemWidget->getRecordId() == recordId 的那个，removeItemWidget
+        // 遍历找到对应的 Item 并删除
+        for (int i = 0; i < listWidget->count(); ++i) {
+            QListWidgetItem *item = listWidget->item(i);
+            // 获取关联的 Widget
+            auto *widget = qobject_cast<ClipboardItemWidget*>(listWidget->itemWidget(item));
+            if (widget && widget->getRecordId() == recordId) {
+                delete listWidget->takeItem(i); // 真正从列表移除并释放内存
+                break;
+            }
+        }
     }
 }
 
 void ResourceManager::onTagUpdated(int recordId, const QString &newTag)
 {
     DatabaseManager::instance().updateTag(recordId, newTag);
+}
+
+void ResourceManager::loadHistory()
+{
+    // 1. 从数据库取出所有数据
+    QList<ClipboardRecord> history = DatabaseManager::instance().getAllRecords();
+
+    // 2. 遍历并显示到界面
+    for (const auto &rec : history) {
+        displayExistingRecord(rec.id, rec.text, rec.image, rec.time, rec.tag);
+    }
 }

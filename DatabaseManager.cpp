@@ -8,6 +8,8 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include <qiodevice.h>
+#include <QBuffer>
 
 DatabaseManager& DatabaseManager::instance()
 {
@@ -62,6 +64,14 @@ int DatabaseManager::addRecord(const QString &text, const QImage &image, const Q
 {
     if (!db.isOpen()) return -1;
 
+    QByteArray bytes;
+    if (!image.isNull()) {
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        // 建议保存为 PNG 格式以保留透明度并保证无损
+        image.save(&buffer, "PNG");
+    }
+
     QSqlQuery query(db);
     query.prepare(R"(
         INSERT INTO clipboard_history (content, is_image, image_data, created_at, tag)
@@ -69,7 +79,11 @@ int DatabaseManager::addRecord(const QString &text, const QImage &image, const Q
     )");
     query.addBindValue(text);
     query.addBindValue(!image.isNull() ? 1 : 0);
-    query.addBindValue(QByteArray());  // 暂不存图片，可后续扩展
+    if (bytes.isEmpty()) {
+        query.addBindValue(QVariant(QMetaType::fromType<QByteArray>())); // 存入空值
+    } else {
+        query.addBindValue(bytes); // 存入图片二进制流
+    }
     query.addBindValue(createdTime.toString(Qt::ISODate));
     query.addBindValue(tag);
 
@@ -110,4 +124,31 @@ bool DatabaseManager::deleteRecord(int recordId)
         return false;
     }
     return true;
+}
+
+QList<ClipboardRecord> DatabaseManager::getAllRecords() {
+    QList<ClipboardRecord> records;
+    QSqlQuery query(db);
+
+    if (!query.exec("SELECT id, content, image_data, created_at, tag FROM clipboard_history ORDER BY created_at ASC")) {
+        qDebug() << "查询失败：" << query.lastError().text();
+        return records;
+    }
+
+    while (query.next()) {
+        ClipboardRecord rec;
+        rec.id = query.value(0).toInt();
+        rec.text = query.value(1).toString();
+
+        // 将 BLOB 转回 QImage
+        QByteArray ba = query.value(2).toByteArray();
+        if (!ba.isEmpty()) {
+            rec.image.loadFromData(ba, "PNG");
+        }
+
+        rec.time = QDateTime::fromString(query.value(3).toString(), Qt::ISODate);
+        rec.tag = query.value(4).toString();
+        records.append(rec);
+    }
+    return records;
 }

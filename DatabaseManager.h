@@ -10,6 +10,14 @@
 #include <QDateTime>
 #include <QImage>
 
+typedef struct ClipboardRecord {
+    int id;
+    QString text;
+    QImage image;
+    QDateTime time;
+    QString tag;
+}ClipboardRecord;//一项信息
+
 class DatabaseManager : public QObject
 {
     Q_OBJECT
@@ -22,15 +30,12 @@ public:
 
     // 插入新记录，返回新生成的 id（失败返回 -1）
     int addRecord(const QString &text, const QImage &image, const QDateTime &createdTime, const QString &tag = "");
-
     // 更新标签
     bool updateTag(int recordId, const QString &newTag);
-
     // 删除记录
     bool deleteRecord(int recordId);
-
-    // 可扩展：加载所有记录（用于程序启动时恢复列表）
-    // QVector<HistoryRecord> loadAllRecords();
+    //加载所有记录
+    QList<ClipboardRecord> getAllRecords();
 
 private:
     explicit DatabaseManager(QObject *parent = nullptr);

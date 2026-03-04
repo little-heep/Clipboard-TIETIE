@@ -74,12 +74,6 @@ ClipboardItemWidget::ClipboardItemWidget(
         m_textLabel->setVisible(true);
     }
 
-    // 鼠标提示：告诉用户点一下就能复制完整内容
-    if (m_text.length() > MAX_DISPLAY_CHARS || displayText.contains("…")) {
-        setToolTip("点击复制完整内容");
-    }
-
-
     setCursor(Qt::PointingHandCursor);
 }
 
@@ -147,7 +141,11 @@ void ClipboardItemWidget::setupUi()
     m_tagLabel->setStyleSheet("border: 1.5px inset #999999; border-radius: 7px;color:gray;");
     m_tagLabel->setReadOnly(true);  // 初始为只读
     m_tagLabel->setMaxLength(10);
-    m_tagLabel->setFixedWidth(22);
+    QFontMetrics fm(font());
+    int textWidth = fm.horizontalAdvance(m_tag);
+    int newWidth = textWidth + 10;  // 增加一些边距
+    newWidth = qBound(22, newWidth, 300);
+    m_tagLabel->setFixedWidth(newWidth);
     m_tagLabel->installEventFilter(this);  // 安装事件过滤器监听双击
     // 连接编辑完成信号（回车和失去焦点都会触发这个信号）
     connect(m_tagLabel, &QLineEdit::editingFinished, this, &ClipboardItemWidget::onEditingFinished);
