@@ -11,6 +11,9 @@
 #include <QDebug>
 #include <QGraphicsDropShadowEffect>
 #include <QScrollBar>
+#include <QSettings>
+
+#include "MyDialogs.h"
 
 ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     setWindowTitle("Resource Manager");
@@ -30,12 +33,52 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     serchLabel = new QLineEdit();
     serchLabel->setPlaceholderText("🔍 /t+搜索标签...");  // 提示文字
     serchLabel->setClearButtonEnabled(true);       // 启用 Qt 自带的小叉清空按钮
-    deleteallbtn=new QPushButton("🗑");
+    settingbtn=new QPushButton();
     hlayout->addWidget(serchLabel);
-    hlayout->addWidget(deleteallbtn);
+    hlayout->addWidget(settingbtn);
     hlayout->setSpacing(5);
     topLayout->addWidget(titleLabel);
     topLayout->addLayout(hlayout);
+    //设置菜单
+    QMenu *settingsMenu = new QMenu(this);
+    QAction *actionPreferences = new QAction("热键偏好设置", this);
+    QAction *actionClearHistory = new QAction("清空历史记录", this);
+    QAction *actionAbout = new QAction("关于", this);
+    QAction *actionExit = new QAction("退出程序", this);
+    settingsMenu->addAction(actionPreferences);
+    settingsMenu->addAction(actionClearHistory);
+    settingsMenu->addSeparator(); // 分割线
+    settingsMenu->addAction(actionAbout);
+    settingsMenu->addAction(actionExit);
+    settingsMenu->setStyleSheet(R"(
+    QMenu {
+        background-color: white;       /* 整个菜单的背景色 */
+        border: 2px solid #8c8c8c;    /* 菜单外边框 */
+        padding: 5px;                  /* 菜单内边距 */
+    }
+    QMenu::item {
+        background-color: transparent;
+        padding: 6px 25px 6px 20px;   /* 增加间距，让菜单看起来不拥挤 */
+        color: black;                  /* 默认文字颜色 */
+        border-radius: 4px;            /* 每一项的圆角 */
+    }
+    /* 关键部分：鼠标悬停（选中）时的样式 */
+    QMenu::item:selected {
+        background-color: #f0f0f0;    /* 悬停时的背景色（浅灰色） */
+        color: #000000;                /* 悬停时的文字颜色（强制黑色） */
+    }
+    QMenu::separator {
+        height: 1px;
+        background: #d0d0d0;           /* 分割线颜色 */
+        margin: 5px 10px;
+    }
+    )");
+
+    settingbtn->setMenu(settingsMenu);
+    connect(actionClearHistory, &QAction::triggered, this, &ResourceManager::onClearAll);
+    connect(actionExit, &QAction::triggered, qApp, &QApplication::quit);
+    connect(actionPreferences, &QAction::triggered, this, &ResourceManager::onHotKeyUpdated);
+    connect(actionAbout, &QAction::triggered, this, &ResourceManager::onAbout);
 
     //下部：剪贴历史记录
     historyArea = new QWidget();
@@ -49,7 +92,10 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     setCentralWidget(centralWidget);
 
     // 热键 (Ctrl+N)
-    QHotkey *hotkey = new QHotkey(QKeySequence("Ctrl+N"), true, this);
+    QSettings settings("MyCompany", "ResourceManager");
+    QString savedKey = settings.value("hotkey", "Ctrl+N").toString(); // 默认为 Ctrl+N
+    hotkey = new QHotkey(QKeySequence(savedKey), true, this);
+    hotkey = new QHotkey(QKeySequence("Ctrl+N"), true, this);
     connect(hotkey, &QHotkey::activated, this, &ResourceManager::toggleWindow);
     // 增加内容
     clipboard = QApplication::clipboard();
@@ -91,7 +137,29 @@ void ResourceManager::setstyle() {
     }
     )");
     titleLabel->setStyleSheet("border-image: url(:/image/word.png) 0 stretch stretch;");
-    deleteallbtn->setStyleSheet("border: 2px outset #8c8c8c; ;border-image:none;background-color:white;color:black");
+    settingbtn->setFixedWidth(26);
+    settingbtn->setIcon(QIcon(":/image/setting.png"));
+    settingbtn->setIconSize(QSize(16, 16));
+    settingbtn->setStyleSheet(R"(
+    QPushButton {
+        border: 2px outset #8c8c8c;
+        border-image: none;
+        background-color: white;
+        color: black;
+        padding: 0px; /* 确保 icon 居中 */
+    }
+
+    /* 关键代码：去掉右下角的小箭头 */
+    QPushButton::menu-indicator {
+        width:0px;
+        image: none;
+    }
+
+    QPushButton:hover {
+        background-color: #f8f8f8;
+    }
+    )");
+
 
     historyArea->setStyleSheet("border-image: url(:/image/background.png) 0 stretch stretch; background-color:none;");
     QGraphicsDropShadowEffect *bottonshadow = new QGraphicsDropShadowEffect(historyArea);
@@ -248,4 +316,32 @@ void ResourceManager::loadHistory()
     for (const auto &rec : history) {
         displayExistingRecord(rec.id, rec.text, rec.image, rec.time, rec.tag);
     }
+}
+
+void ResourceManager::onClearAll() {
+    listWidget->clear();
+    DatabaseManager::instance().clearAll();
+}
+void ResourceManager::onHotKeyUpdated() {
+    SettingsDialog dlg(this);
+    // 先显示当前热键
+    dlg.keyEdit->setText(hotkey->shortcut().toString());
+
+    if (dlg.exec() == QDialog::Accepted) {
+        QString newKey = dlg.keyEdit->text();
+        if (newKey.isEmpty()) return;
+
+        // 1. 更新 QHotkey
+        hotkey->setShortcut(QKeySequence(newKey), true);
+
+        // 2. 保存到注册表/配置文件
+        QSettings settings("MyCompany", "ResourceManager");
+        settings.setValue("hotkey", newKey);
+
+        qDebug() << "热键已更新为:" << newKey;
+    }
+}
+void ResourceManager::onAbout() {
+    AboutDialog dlg(this);
+    dlg.exec();
 }

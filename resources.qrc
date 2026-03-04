@@ -3,5 +3,6 @@
         <file>image/title.png</file>
         <file>image/word.png</file>
         <file>image/background.png</file>
+        <file>image/setting.png</file>
     </qresource>
 </RCC>

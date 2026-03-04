@@ -126,6 +126,34 @@ bool DatabaseManager::deleteRecord(int recordId)
     return true;
 }
 
+bool DatabaseManager::clearAll() {
+    if (!db.isOpen()) {
+        qWarning() << "数据库未打开";
+        return false;
+    }
+    QSqlQuery query(db);
+
+    // 开启事务处理（提高效率并保证原子性）
+    db.transaction();
+    // 删除所有数据
+    if (!query.exec("DELETE FROM clipboard_history")) {
+        qWarning() << "删除记录失败:" << query.lastError().text();
+        db.rollback();
+        return false;
+    }
+    // 重置自增 ID 计数器
+    query.exec("DELETE FROM sqlite_sequence WHERE name='clipboard_history'");
+    // 提交事务
+    if (!db.commit()) {
+        qWarning() << "事务提交失败";
+        return false;
+    }
+    // 释放磁盘空间
+    query.exec("VACUUM");
+
+    return true;
+}
+
 QList<ClipboardRecord> DatabaseManager::getAllRecords() {
     QList<ClipboardRecord> records;
     QSqlQuery query(db);

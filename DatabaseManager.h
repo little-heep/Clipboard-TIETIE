@@ -34,6 +34,8 @@ public:
     bool updateTag(int recordId, const QString &newTag);
     // 删除记录
     bool deleteRecord(int recordId);
+    // 删除所有记录
+    bool clearAll();
     //加载所有记录
     QList<ClipboardRecord> getAllRecords();
 

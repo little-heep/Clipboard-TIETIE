@@ -29,6 +29,10 @@ add_executable(Reminder main.cpp
         resources.qrc
         DatabaseManager.cpp
         DatabaseManager.h
+        KeyRecognition.cpp
+        KeyRecognition.h
+        MyDialogs.cpp
+        MyDialogs.h
 )
 target_link_libraries(Reminder
         Qt::Core

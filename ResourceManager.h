@@ -38,6 +38,7 @@ public:
 private:
     QClipboard *clipboard;
     QList<QImage> images;
+    QHotkey *hotkey;
 
     QWidget *centralWidget;
     //上部
@@ -45,7 +46,13 @@ private:
     QVBoxLayout *topLayout;
     QLabel *titleLabel;
     QLineEdit *serchLabel;
-    QPushButton *deleteallbtn;
+    QPushButton *settingbtn;
+    QMenu *settingsMenu = new QMenu(this);
+    QAction *actionPreferences;
+    QAction *actionClearHistory;
+    QAction *actionAbout;
+    QAction *actionExit;
+
     //下部
     QWidget *historyArea;
     QVBoxLayout *historyLayout;
@@ -64,10 +71,11 @@ private slots:
     void toggleWindow() ;
     void copy() ;
     void onClipboardChanged();
-
     void onDeleteRecord(int recordId);
-
     void onTagUpdated(int recordId, const QString &newTag);
+    void onClearAll();
+    void onHotKeyUpdated();
+    void onAbout();
 };
 
 
