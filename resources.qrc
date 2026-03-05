@@ -4,5 +4,6 @@
         <file>image/word.png</file>
         <file>image/background.png</file>
         <file>image/setting.png</file>
+        <file>image/tietie.jpeg</file>
     </qresource>
 </RCC>

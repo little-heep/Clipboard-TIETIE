@@ -15,45 +15,31 @@
 #include <QPushButton>
 #include <QApplication>
 #include <QClipboard>
+#include <QCheckBox>
 
 class AboutDialog : public QDialog {
 public:
     explicit AboutDialog(QWidget *parent = nullptr) : QDialog(parent) {
-        setWindowTitle("关于 TIETIE");
-        setFixedSize(300, 380);
-
-        // 1. 设置整体样式
-        // 背景色采用淡淡的紫粉色，文字采用深紫色
-        this->setStyleSheet(R"(
-            QDialog {
-                background-color: #fdf2f8;
-                border: 1px solid #e5d5e0;
-            }
-            QLabel {
-                color: #1a1a2e;
-                font-family: "Segoe UI", "Microsoft YaHei";
-            }
-            a { color: #0066cc; text-decoration: none; }
-        )");
-
-        // 去掉问号按钮
-        setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+        setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint| Qt::FramelessWindowHint);
+        setFixedSize(360, 260);
 
         // 主布局
         QVBoxLayout *mainLayout = new QVBoxLayout(this);
-        mainLayout->setContentsMargins(30, 40, 30, 20);
+        mainLayout->setContentsMargins(10, 10, 10, 10);
         mainLayout->setSpacing(0);
 
         // --- 中间内容区 ---
         QHBoxLayout *contentLayout = new QHBoxLayout();
-        contentLayout->setSpacing(25);
+        contentLayout->setSpacing(20);
         contentLayout->setAlignment(Qt::AlignTop);
 
         // 左侧：图标
         QLabel *iconLabel = new QLabel();
-        QPixmap logo(":/image/setting.png"); // 替换为你的图标路径
-        iconLabel->setPixmap(logo.scaled(50, 50, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        QPixmap logo(":/image/tietie.jpeg"); // 替换为你的图标路径
+        iconLabel->setPixmap(logo.scaled(150, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         iconLabel->setAlignment(Qt::AlignTop);
+        iconLabel->setFixedWidth(150);
+        iconLabel->setStyleSheet("background-color:transparent;border:none;");
         contentLayout->addWidget(iconLabel);
 
         // 右侧：文本信息
@@ -71,19 +57,18 @@ public:
         licenseLabel->setStyleSheet("font-size: 12px; margin-top: 15px; line-height: 150%;background-color:transparent;border:none;");
 
         QLabel *techLabel = new QLabel("运行环境: Qt 6.5.3 + MSVC 2019 amd64\n"
-                                       "版权所有 © 2024–2026 <a href='https://yourwebsite.com'>Micheal Studio s.r.o.</a>");
+                                       "版权所有 © 2024–2026 https://github.com/little-heep \n");
         techLabel->setOpenExternalLinks(true);
         techLabel->setStyleSheet("font-size: 12px; margin-top: 20px; color: #666;background-color:transparent;border:none;");
 
         textLayout->addWidget(titleLabel);
         textLayout->addWidget(buildLabel);
         textLayout->addWidget(licenseLabel);
-        textLayout->addWidget(techLabel);
         textLayout->addStretch();
 
         contentLayout->addLayout(textLayout);
         mainLayout->addLayout(contentLayout);
-
+        mainLayout->addWidget(techLabel);
         // --- 底部按钮区 ---
         QHBoxLayout *btnLayout = new QHBoxLayout();
         btnLayout->addStretch();
@@ -121,21 +106,28 @@ public:
     KeyRecognition *keyEdit;
     QPushButton *saveBtn;
     QPushButton *cancelBtn;
+    QCheckBox *autoStartCheckBox;
 
     SettingsDialog(QWidget *parent = nullptr) : QDialog(parent) {
-        setWindowTitle("系统设置");
+        setWindowFlags(windowFlags()& ~Qt::WindowContextHelpButtonHint | Qt::FramelessWindowHint);
         setFixedSize(200, 170);
-        setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint); // 去掉问号
 
         // 窗口整体背景
         this->setStyleSheet("QDialog { background-color: white;border:none; }"
                             "QPushButton { border-radius: 5px;border: 1px solid #E0E0E0; }");
 
         QVBoxLayout *mainlayout = new QVBoxLayout(this);
-
-       // QHBoxLayout *clayout = new QHBoxLayout();
         mainlayout->setContentsMargins(25, 25, 25, 20);
         mainlayout->setSpacing(15);
+
+        QHBoxLayout *startlayout = new QHBoxLayout();
+        QLabel *startlabel = new QLabel("是否开机自启动");
+        startlabel->setStyleSheet("border:none;");
+        autoStartCheckBox=new QCheckBox();
+        autoStartCheckBox->setStyleSheet("font-size: 10px;border:none;");
+        startlayout->addWidget(startlabel);
+        startlayout->addWidget(autoStartCheckBox);
+        mainlayout->addLayout(startlayout);
 
         keyEdit = new KeyRecognition(this);
 

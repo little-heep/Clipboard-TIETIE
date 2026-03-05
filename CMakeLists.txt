@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.0)
-project(Reminder)
+project(TIETIE)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_AUTOMOC ON)
@@ -21,7 +21,7 @@ find_package(qhotkey
         REQUIRED
 )
 
-add_executable(Reminder main.cpp
+add_executable(TIETIE main.cpp
         ResourceManager.cpp
         ResourceManager.h
         ClipboardItemWidget.cpp
@@ -33,8 +33,9 @@ add_executable(Reminder main.cpp
         KeyRecognition.h
         MyDialogs.cpp
         MyDialogs.h
+        app.rc
 )
-target_link_libraries(Reminder
+target_link_libraries(TIETIE
         Qt::Core
         Qt::Gui
         Qt::Widgets

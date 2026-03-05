@@ -35,10 +35,18 @@ public:
 
     ~ResourceManager() override;
 
+protected:
+    // 重写鼠标事件以实现拖拽
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+
 private:
     QClipboard *clipboard;
     QList<QImage> images;
     QHotkey *hotkey;
+    bool m_isDragging = false;
+    QPoint m_dragPosition;
 
     QWidget *centralWidget;
     //上部

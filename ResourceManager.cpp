@@ -14,12 +14,15 @@
 #include <QSettings>
 
 #include "MyDialogs.h"
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 
 ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
-    setWindowTitle("Resource Manager");
+    setWindowTitle("TIETIE");
     resize(400, 400);
     positionToTopRight();
-    setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);  // Always on top
+    setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
 
     // UI Setup
     QWidget *centralWidget = new QWidget(this);
@@ -31,7 +34,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     titleLabel = new QLabel();
     QHBoxLayout *hlayout = new QHBoxLayout();
     serchLabel = new QLineEdit();
-    serchLabel->setPlaceholderText("🔍 /t+搜索标签...");  // 提示文字
+    serchLabel->setPlaceholderText("⌕ /t+搜索标签...");  // 提示文字
     serchLabel->setClearButtonEnabled(true);       // 启用 Qt 自带的小叉清空按钮
     settingbtn=new QPushButton();
     hlayout->addWidget(serchLabel);
@@ -95,13 +98,10 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     QSettings settings("MyCompany", "ResourceManager");
     QString savedKey = settings.value("hotkey", "Ctrl+N").toString(); // 默认为 Ctrl+N
     hotkey = new QHotkey(QKeySequence(savedKey), true, this);
-    hotkey = new QHotkey(QKeySequence("Ctrl+N"), true, this);
     connect(hotkey, &QHotkey::activated, this, &ResourceManager::toggleWindow);
     // 增加内容
     clipboard = QApplication::clipboard();
     connect(clipboard, &QClipboard::dataChanged, this, &ResourceManager::onClipboardChanged);
-    //左键双击展开预览
-    //connect(listWidget, &QListWidget::itemDoubleClicked, this, &ResourceManager::showContextMenu);
     //左键单击粘贴
     connect(listWidget, &QListWidget::itemClicked, this, &ResourceManager::copy);
 
@@ -234,10 +234,45 @@ void ResourceManager::toggleWindow() {
 }
 
 void ResourceManager::copy() {
-    if (listWidget->currentItem()) {
-        QString text = listWidget->currentItem()->text();
-        QApplication::clipboard()->setText(text);
+    QListWidgetItem *item = listWidget->currentItem();
+    if (!item) return;
+
+    QString text = item->data(Qt::UserRole).toString();
+    QImage image = item->data(Qt::UserRole + 1).value<QImage>();
+    // 如果都没有内容，直接返回
+    if (text.isEmpty() && image.isNull()) return;
+
+    // 2. 将内容放入系统剪贴板（必须屏蔽信号，防止自己的程序又把这条记录抓取一遍）
+    clipboard->blockSignals(true);
+    // 判断优先放入图片还是文字
+    if (!image.isNull()) {
+        clipboard->setImage(image); // 放入图片
+    } else {
+        clipboard->setText(text);   // 放入文字
     }
+    clipboard->blockSignals(false);
+
+    // 3. 隐藏当前窗口。这一步极其关键！
+    // 隐藏后，Windows 会自动把焦点还给上一个处于激活状态的窗口（比如你刚才正在打字的 Word）
+    this->hide();
+
+    // 4. 模拟按下 Ctrl + V
+#ifdef Q_OS_WIN
+    // 稍微延时一下，等待 Windows 完成焦点切换（50~100毫秒一般足够）
+    Sleep(80);
+
+    // 模拟按下 Ctrl 键
+    keybd_event(VK_CONTROL, 0, 0, 0);
+    // 模拟按下 V 键
+    keybd_event('V', 0, 0, 0);
+    // 模拟释放 V 键
+    keybd_event('V', 0, KEYEVENTF_KEYUP, 0);
+    // 模拟释放 Ctrl 键
+    keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
+#endif
+
+    // 取消选中状态，方便下次点击
+    listWidget->clearSelection();
 }
 
 
@@ -261,6 +296,8 @@ void ResourceManager::onClipboardChanged() {
 void ResourceManager::displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag)
 {
     auto *item = new QListWidgetItem();
+    item->setData(Qt::UserRole, text);
+    item->setData(Qt::UserRole + 1, image);
     // 历史记录加载建议：因为 SQL 是 ASC 排序，新解析出来的放在最上面
     listWidget->insertItem(0, item);
 
@@ -326,6 +363,8 @@ void ResourceManager::onHotKeyUpdated() {
     SettingsDialog dlg(this);
     // 先显示当前热键
     dlg.keyEdit->setText(hotkey->shortcut().toString());
+    // 初始化开机自启 CheckBox 的勾选状态
+    //dlg.autoStartCheckBox->setChecked(this->checkAutoStart());
 
     if (dlg.exec() == QDialog::Accepted) {
         QString newKey = dlg.keyEdit->text();
@@ -344,4 +383,36 @@ void ResourceManager::onHotKeyUpdated() {
 void ResourceManager::onAbout() {
     AboutDialog dlg(this);
     dlg.exec();
+}
+void ResourceManager::mousePressEvent(QMouseEvent *event)
+{
+    // 只有鼠标左键按下时才允许拖动
+    if (event->button() == Qt::LeftButton) {
+        // 判断鼠标按下的位置是否在顶部标题栏区域内 (例如 topWidget 的高度范围内)
+        if (event->pos().y() <= topWidget->height()) {
+            m_isDragging = true;
+            // 计算鼠标点击位置与窗口左上角的相对偏移量
+            m_dragPosition = event->globalPosition().toPoint() - this->frameGeometry().topLeft();
+            event->accept();
+        }
+    }
+}
+
+void ResourceManager::mouseMoveEvent(QMouseEvent *event)
+{
+    // 如果处于拖动状态，且鼠标左键是按下的
+    if (m_isDragging && (event->buttons() & Qt::LeftButton)) {
+        // 将窗口移动到鼠标当前位置减去最初的偏移量
+        this->move(event->globalPosition().toPoint() - m_dragPosition);
+        event->accept();
+    }
+}
+
+void ResourceManager::mouseReleaseEvent(QMouseEvent *event)
+{
+    // 鼠标松开时，停止拖动
+    if (event->button() == Qt::LeftButton) {
+        m_isDragging = false;
+        event->accept();
+    }
 }
