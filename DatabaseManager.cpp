@@ -10,6 +10,8 @@
 #include <QDebug>
 #include <qiodevice.h>
 #include <QBuffer>
+#include <QStandardPaths>
+#include <QDir>
 
 DatabaseManager& DatabaseManager::instance()
 {
@@ -30,8 +32,23 @@ DatabaseManager::~DatabaseManager()
 
 bool DatabaseManager::openDatabase(const QString &dbPath)
 {
+    // 1. 获取系统标准的数据存放路径 (AppData/Roaming/组织名/应用名)
+    QString dataLocation = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    // 2. 确保目录存在，如果不存在则自动创建
+    QDir dir(dataLocation);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    // 3. 提取传入的文件名，并与 AppData 目录拼接成绝对路径
+    // 这样即使外部传入的是相对路径 "tietie.db"，也会变成 "C:/Users/用户名/AppData/Roaming/.../tietie.db"
+    QFileInfo fileInfo(dbPath);
+    QString absoluteDbPath = dir.absoluteFilePath(fileInfo.fileName());
+
+    // 4. 连接数据库
     db = QSqlDatabase::addDatabase("QSQLITE", "clipboard_conn");
-    db.setDatabaseName(dbPath);
+    db.setDatabaseName(absoluteDbPath); // 使用绝对路径！！！
 
     if (!db.open()) {
         qWarning() << "数据库打开失败:" << db.lastError().text();

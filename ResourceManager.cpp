@@ -36,6 +36,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     serchLabel = new QLineEdit();
     serchLabel->setPlaceholderText("⌕ /t+搜索标签...");  // 提示文字
     serchLabel->setClearButtonEnabled(true);       // 启用 Qt 自带的小叉清空按钮
+    connect(serchLabel, &QLineEdit::textChanged, this, &ResourceManager::onSearchTextChanged);
     settingbtn=new QPushButton();
     hlayout->addWidget(serchLabel);
     hlayout->addWidget(settingbtn);
@@ -44,7 +45,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     topLayout->addLayout(hlayout);
     //设置菜单
     QMenu *settingsMenu = new QMenu(this);
-    QAction *actionPreferences = new QAction("热键偏好设置", this);
+    QAction *actionPreferences = new QAction("偏好设置", this);
     QAction *actionClearHistory = new QAction("清空历史记录", this);
     QAction *actionAbout = new QAction("关于", this);
     QAction *actionExit = new QAction("退出程序", this);
@@ -80,7 +81,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     settingbtn->setMenu(settingsMenu);
     connect(actionClearHistory, &QAction::triggered, this, &ResourceManager::onClearAll);
     connect(actionExit, &QAction::triggered, qApp, &QApplication::quit);
-    connect(actionPreferences, &QAction::triggered, this, &ResourceManager::onHotKeyUpdated);
+    connect(actionPreferences, &QAction::triggered, this, &ResourceManager::onPreferenceUpdated);
     connect(actionAbout, &QAction::triggered, this, &ResourceManager::onAbout);
 
     //下部：剪贴历史记录
@@ -94,8 +95,8 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     mainlayout->addWidget(historyArea, 1);
     setCentralWidget(centralWidget);
 
-    // 热键 (Ctrl+N)
-    QSettings settings("MyCompany", "ResourceManager");
+    // 热键
+    QSettings settings;
     QString savedKey = settings.value("hotkey", "Ctrl+N").toString(); // 默认为 Ctrl+N
     hotkey = new QHotkey(QKeySequence(savedKey), true, this);
     connect(hotkey, &QHotkey::activated, this, &ResourceManager::toggleWindow);
@@ -298,6 +299,7 @@ void ResourceManager::displayExistingRecord(int id, const QString &text, const Q
     auto *item = new QListWidgetItem();
     item->setData(Qt::UserRole, text);
     item->setData(Qt::UserRole + 1, image);
+    item->setData(Qt::UserRole + 2, tag);
     // 历史记录加载建议：因为 SQL 是 ASC 排序，新解析出来的放在最上面
     listWidget->insertItem(0, item);
 
@@ -342,6 +344,16 @@ void ResourceManager::onDeleteRecord(int recordId)
 void ResourceManager::onTagUpdated(int recordId, const QString &newTag)
 {
     DatabaseManager::instance().updateTag(recordId, newTag);
+    for (int i = 0; i < listWidget->count(); ++i) {
+        QListWidgetItem *item = listWidget->item(i);
+        auto *widget = qobject_cast<ClipboardItemWidget*>(listWidget->itemWidget(item));
+
+        if (widget && widget->getRecordId() == recordId) {
+            // 找到对应的 item，更新它的标签数据
+            item->setData(Qt::UserRole + 2, newTag);
+            break;
+        }
+    }
 }
 
 void ResourceManager::loadHistory()
@@ -359,12 +371,12 @@ void ResourceManager::onClearAll() {
     listWidget->clear();
     DatabaseManager::instance().clearAll();
 }
-void ResourceManager::onHotKeyUpdated() {
+void ResourceManager::onPreferenceUpdated() {
     SettingsDialog dlg(this);
     // 先显示当前热键
     dlg.keyEdit->setText(hotkey->shortcut().toString());
     // 初始化开机自启 CheckBox 的勾选状态
-    //dlg.autoStartCheckBox->setChecked(this->checkAutoStart());
+    dlg.autoStartCheckBox->setChecked(this->checkAutoStart());
 
     if (dlg.exec() == QDialog::Accepted) {
         QString newKey = dlg.keyEdit->text();
@@ -374,10 +386,14 @@ void ResourceManager::onHotKeyUpdated() {
         hotkey->setShortcut(QKeySequence(newKey), true);
 
         // 2. 保存到注册表/配置文件
-        QSettings settings("MyCompany", "ResourceManager");
+        QSettings settings;
         settings.setValue("hotkey", newKey);
 
         qDebug() << "热键已更新为:" << newKey;
+
+        // 保存开机自启设置
+        bool isAutoStart = dlg.autoStartCheckBox->isChecked();
+        this->setAutoStart(isAutoStart);
     }
 }
 void ResourceManager::onAbout() {
@@ -414,5 +430,84 @@ void ResourceManager::mouseReleaseEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton) {
         m_isDragging = false;
         event->accept();
+    }
+}
+
+void ResourceManager::setAutoStart(bool enable) {
+    // 注册表启动项的路径
+    QString regPath = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    QSettings settings(regPath, QSettings::NativeFormat);
+
+    // 你程序的唯一标识名称（英文字母即可）
+    QString appName = "TIETIE_App";
+
+    if (enable) {
+        // 获取当前 exe 的绝对路径
+        QString appPath = QCoreApplication::applicationFilePath();
+        // 将路径中的 '/' 替换为 Windows 标准的 '\'
+        appPath = QDir::toNativeSeparators(appPath);
+
+        // 关键：如果路径中带有空格，注册表必须要用双引号把路径括起来，否则开机会报错
+        QString value = "\"" + appPath + "\" --silent";
+
+        // 写入注册表
+        settings.setValue(appName, value);
+        qDebug() << "已开启开机自启:" << value;
+    } else {
+        // 从注册表中移除
+        settings.remove(appName);
+        qDebug() << "已关闭开机自启";
+    }
+}
+
+bool ResourceManager::checkAutoStart() {
+    QString regPath = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+    QSettings settings(regPath, QSettings::NativeFormat);
+
+    QString appName = "TIETIE_App";
+
+    // 检查注册表中是否存在这个键值
+    return settings.contains(appName);
+}
+
+void ResourceManager::onSearchTextChanged(const QString &searchText)
+{
+    // 判断是否是纯标签搜索 (以 "/t" 开头)
+    bool isTagSearch = searchText.startsWith("/t", Qt::CaseInsensitive);
+    QString keyword = searchText;
+
+    if (isTagSearch) {
+        // 去掉 "/t" 前缀，并去除前后空格
+        keyword = searchText.mid(2).trimmed();
+    } else {
+        keyword = searchText.trimmed();
+    }
+
+    // 遍历所有的列表项
+    for (int i = 0; i < listWidget->count(); ++i) {
+        QListWidgetItem *item = listWidget->item(i);
+
+        // 取出我们之前绑定的文本和标签
+        QString itemText = item->data(Qt::UserRole).toString();
+        QString itemTag = item->data(Qt::UserRole + 2).toString();
+
+        bool match = false;
+
+        // 如果搜索框为空，全部显示
+        if (keyword.isEmpty()) {
+            match = true;
+        }
+        else if (isTagSearch) {
+            // 如果是标签搜索，只匹配标签
+            match = itemTag.contains(keyword, Qt::CaseInsensitive);
+        }
+        else {
+            // 普通搜索，内容或标签包含关键字都算匹配
+            match = itemText.contains(keyword, Qt::CaseInsensitive) ||
+                    itemTag.contains(keyword, Qt::CaseInsensitive);
+        }
+
+        // 核心：如果不匹配就隐藏，匹配就显示
+        item->setHidden(!match);
     }
 }

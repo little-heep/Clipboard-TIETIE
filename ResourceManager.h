@@ -35,6 +35,11 @@ public:
 
     ~ResourceManager() override;
 
+    // 设置是否开机自启
+    void setAutoStart(bool enable);
+    // 检查当前是否已经开启了开机自启
+    bool checkAutoStart();
+
 protected:
     // 重写鼠标事件以实现拖拽
     void mousePressEvent(QMouseEvent *event) override;
@@ -79,10 +84,11 @@ private slots:
     void toggleWindow() ;
     void copy() ;
     void onClipboardChanged();
+    void onSearchTextChanged(const QString &text);
     void onDeleteRecord(int recordId);
     void onTagUpdated(int recordId, const QString &newTag);
     void onClearAll();
-    void onHotKeyUpdated();
+    void onPreferenceUpdated();
     void onAbout();
 };
 

@@ -53,7 +53,7 @@ public:
         QLabel *buildLabel = new QLabel("2026年3月1日 构建");
         buildLabel->setStyleSheet("font-size: 12px; color: #4a4a6a;background-color:transparent;border:none;");
 
-        QLabel *licenseLabel = new QLabel("授权给 Micheal\n订阅有效期至 2027年3月1日。\nFor non-commercial use only.");
+        QLabel *licenseLabel = new QLabel("授权给 Yuqqi (●'◡'●)\n好的内容，值得保留。\nFor non-commercial use only.");
         licenseLabel->setStyleSheet("font-size: 12px; margin-top: 15px; line-height: 150%;background-color:transparent;border:none;");
 
         QLabel *techLabel = new QLabel("运行环境: Qt 6.5.3 + MSVC 2019 amd64\n"
