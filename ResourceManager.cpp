@@ -278,20 +278,52 @@ void ResourceManager::copy() {
 
 
 void ResourceManager::onClipboardChanged() {
-    // 剪贴板新增内容若不为空加入listwidget
-    if (clipboard->text().isEmpty() && clipboard->image().isNull()) {
+    QString newText = clipboard->text();
+    QImage newImage = clipboard->image();
+
+    // 1. 如果都没内容，直接返回
+    if (newText.isEmpty() && newImage.isNull()) {
         return;
     }
-    //去重
-    for (int i = 0; i < listWidget->count(); ++i) {
-        QListWidgetItem *item = listWidget->item(i);
-        if (item->text() == clipboard->text()) {
-            listWidget->takeItem(i);
-            break;
+
+    // 2. 防抖与短时间重复过滤 (解决 Windows 复制一次触发多次信号的问题)
+    // 直接检查列表最顶部的元素，如果和当前剪贴板完全一样，直接丢弃
+    if (listWidget->count() > 0) {
+        QListWidgetItem *topItem = listWidget->item(0);
+        // 注意：必须用 data(Qt::UserRole) 来获取你存入的文本
+        QString topText = topItem->data(Qt::UserRole).toString();
+        QImage topImage = topItem->data(Qt::UserRole + 1).value<QImage>();
+
+        bool textSame = (!newText.isEmpty() && newText == topText);
+        // 对于图片，简单对比尺寸防止连发即可（逐像素对比太耗时）
+        bool imageSame = (!newImage.isNull() && !topImage.isNull()
+                          && newImage.size() == topImage.size());
+
+        if ((!newText.isEmpty() && textSame) || (newText.isEmpty() && imageSame)) {
+            return; // 发现是刚刚才添加过的内容，直接忽略
         }
     }
-    //添加到剪贴板
-    addHistoryItem(clipboard->text(), clipboard->image());
+
+    // 3. 全局历史去重 (如果复制了以前复制过的旧内容，把旧的删掉，把新的置顶)
+    if (!newText.isEmpty()) {
+        for (int i = 0; i < listWidget->count(); ++i) {
+            QListWidgetItem *item = listWidget->item(i);
+            QString itemText = item->data(Qt::UserRole).toString(); // 正确的获取方式
+
+            if (itemText == newText) {
+                // 找到了旧的重复项。必须调用你写好的 onDeleteRecord，
+                // 这样才能同时从 数据库 和 UI 中彻底删除旧记录！
+                auto *widget = qobject_cast<ClipboardItemWidget*>(listWidget->itemWidget(item));
+                if (widget) {
+                    onDeleteRecord(widget->getRecordId());
+                }
+                break; // 删掉旧的就可以了，退出循环
+            }
+        }
+    }
+
+    // 4. 将新内容添加到界面和数据库
+    addHistoryItem(newText, newImage);
 }
 
 void ResourceManager::displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag)
