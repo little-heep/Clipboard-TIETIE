@@ -6,16 +6,12 @@
 #define REMINDER_MYDIALOGS_H
 #include <QFormLayout>
 #include <QLabel>
-#include "KeyRecognition.h"
-
 #include <QDialog>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
 #include <QPushButton>
-#include <QApplication>
-#include <QClipboard>
 #include <QCheckBox>
+
+#include "KeyRecognition.h"
 
 class AboutDialog : public QDialog {
 public:
@@ -35,7 +31,7 @@ public:
 
         // 左侧：图标
         QLabel *iconLabel = new QLabel();
-        QPixmap logo(":/image/tietie.jpeg"); // 替换为你的图标路径
+        QPixmap logo(":/image/tietie.jpeg");
         iconLabel->setPixmap(logo.scaled(150, 150, Qt::KeepAspectRatio, Qt::SmoothTransformation));
         iconLabel->setAlignment(Qt::AlignTop);
         iconLabel->setFixedWidth(150);
@@ -131,7 +127,7 @@ public:
 
         keyEdit = new KeyRecognition(this);
 
-        QLabel *label = new QLabel("输入框为蓝色时输入快捷键:");
+        QLabel *label = new QLabel("点击输入框，蓝色时输入快捷键:");
         label->setStyleSheet("font-size: 10px; border: none;");
         mainlayout->addWidget(label);
         mainlayout->addWidget(keyEdit);
@@ -144,7 +140,6 @@ public:
 
         btnLayout->addWidget(cancelBtn);
         btnLayout->addWidget(saveBtn);
-        //mainlayout->addLayout(clayout);
         mainlayout->addLayout(btnLayout);
 
         // 连接信号

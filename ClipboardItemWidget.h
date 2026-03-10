@@ -9,18 +9,10 @@
 #include <QImage>
 #include <QLabel>
 #include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QSqlDatabase>
 #include <QDateTime>
-#include <QApplication>
 #include <QClipboard>
 #include <QToolTip>
-#include <QInputDialog>
-#include <QMessageBox>
 #include <QSqlQuery>
-#include <QSqlError>
-#include <QDebug>
 #include <QLineEdit>
 
 
@@ -28,7 +20,7 @@ class ClipboardItemWidget : public QWidget {
     Q_OBJECT
 
 public:
-    explicit ClipboardItemWidget(int recordId,                    // 数据库中的 id
+    explicit ClipboardItemWidget(int recordId,
         const QString &text,
         const QImage &img,
         const QDateTime &createdTime,

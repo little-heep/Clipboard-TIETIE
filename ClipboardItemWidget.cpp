@@ -6,11 +6,11 @@
 
 #include "ClipboardItemWidget.h"
 
-#include <QPushButton>
 #include <QMouseEvent>
 #include <QStyleOption>
 #include <QPainter>
 #include <QGraphicsDropShadowEffect>
+#include <QVBoxLayout>
 
 ClipboardItemWidget::ClipboardItemWidget(
     int recordId,
@@ -35,12 +35,12 @@ ClipboardItemWidget::ClipboardItemWidget(
     // 标签显示（右下角）
     m_tagLabel->setText(m_tag);
     m_tagLabel->setCursor(Qt::PointingHandCursor);
-    m_tagLabel->setToolTip("点击修改标签");
+    m_tagLabel->setToolTip("双击修改标签");
 
     QString displayText = m_text;
 
-    const int MAX_DISPLAY_CHARS  = 180;   // 可调整，建议 120~250 之间
-    const int MAX_DISPLAY_LINES  = 8;     // 最多显示几行
+    const int MAX_DISPLAY_CHARS  = 180; // 最多多显示多少字符
+    const int MAX_DISPLAY_LINES  = 8;   // 最多显示几行
 
     if (!m_image.isNull()) {
         // 有图的情况
@@ -63,7 +63,6 @@ ClipboardItemWidget::ClipboardItemWidget(
         m_textLabel->setWordWrap(true);
         m_textLabel->setVisible(true);
 
-        // 可选：限制最大高度（更保险）
         QFontMetrics fm(m_textLabel->font());
         int lineHeight = fm.lineSpacing();
         m_textLabel->setMaximumHeight(MAX_DISPLAY_LINES * lineHeight + 12);
@@ -82,10 +81,10 @@ void ClipboardItemWidget::setupUi()
     setFixedWidth(330);
     setStyleSheet("border: 1.5px solid black");
     QGraphicsDropShadowEffect *shadow = new QGraphicsDropShadowEffect(this);
-    shadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
-    shadow->setXOffset(3);              // 水平偏移：正数向右
-    shadow->setYOffset(4);              // 垂直偏移：正数向下（模拟光源在上方）
-    shadow->setColor(QColor(0, 0, 0, 80));  // 黑色半透明（80/255 透明度，建议 60~120）
+    shadow->setBlurRadius(12);
+    shadow->setXOffset(3);
+    shadow->setYOffset(4);
+    shadow->setColor(QColor(0, 0, 0, 80));
     this->setGraphicsEffect(shadow);
     auto *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(8, 8, 8, 8);
@@ -139,27 +138,23 @@ void ClipboardItemWidget::setupUi()
     m_tagLabel->setFixedHeight(20);
     m_tagLabel->setCursor(Qt::PointingHandCursor);
     m_tagLabel->setStyleSheet("border: 1.5px inset #999999; border-radius: 7px;color:gray;");
-    m_tagLabel->setReadOnly(true);  // 初始为只读
+    m_tagLabel->setReadOnly(true);
     m_tagLabel->setMaxLength(10);
     QFontMetrics fm(font());
     int textWidth = fm.horizontalAdvance(m_tag);
-    int newWidth = textWidth + 10;  // 增加一些边距
+    int newWidth = textWidth + 10;
     newWidth = qBound(22, newWidth, 300);
     m_tagLabel->setFixedWidth(newWidth);
-    m_tagLabel->installEventFilter(this);  // 安装事件过滤器监听双击
-    // 连接编辑完成信号（回车和失去焦点都会触发这个信号）
+    m_tagLabel->installEventFilter(this);
     connect(m_tagLabel, &QLineEdit::editingFinished, this, &ClipboardItemWidget::onEditingFinished);
 
     auto *bottomLayout = new QHBoxLayout();
     bottomLayout->addStretch();
     bottomLayout->addWidget(m_tagLabel);
     mainLayout->addLayout(bottomLayout);
-
-    // 基础样式
-   // this->setStyleSheet( "border: 1px solid rgba(220, 220, 220, 0.8);border-radius: 12px; padding: 15px;");
-
 }
 
+/* 删除一条记录 */
 void ClipboardItemWidget::onDeleteClicked()
 {
     emit requestDelete(m_recordId);
@@ -172,10 +167,10 @@ bool ClipboardItemWidget::eventFilter(QObject *obj, QEvent *event) {
             // 开启编辑模式
             m_tagLabel->setReadOnly(false);
             m_tagLabel->setFocus();
-            m_tagLabel->selectAll();  // 选中所有文本便于修改
+            m_tagLabel->selectAll();
             m_isEditing = true;
 
-            return true;  // 事件已处理
+            return true;
         }
     }
     return QWidget::eventFilter(obj, event);
@@ -196,7 +191,7 @@ void ClipboardItemWidget::onEditingFinished() {
         //调整宽度
         QFontMetrics fm(font());
         int textWidth = fm.horizontalAdvance(newText);
-        int newWidth = textWidth + 10;  // 增加一些边距
+        int newWidth = textWidth + 10;
         // 设置最小和最大宽度限制
         newWidth = qBound(22, newWidth, 300);
         m_tagLabel->setFixedWidth(newWidth);
@@ -205,7 +200,7 @@ void ClipboardItemWidget::onEditingFinished() {
     }
 }
 
-// 简单截断 + 加省略号（支持按字符数 + 行数双重限制）
+/* 简单截断 + 加省略号（支持按字符数 + 行数双重限制）*/
 QString ClipboardItemWidget::elideText(const QString &text, int maxChars, int maxLines)
 {
     if (text.isEmpty()) return "";
@@ -237,6 +232,7 @@ QString ClipboardItemWidget::elideText(const QString &text, int maxChars, int ma
     return result;
 }
 
+/* 接触布局受父组件影响*/
 void ClipboardItemWidget::paintEvent(QPaintEvent *event) {
     QStyleOption opt;
     opt.initFrom(this);

@@ -31,7 +31,6 @@ add_executable(TIETIE main.cpp
         DatabaseManager.h
         KeyRecognition.cpp
         KeyRecognition.h
-        MyDialogs.cpp
         MyDialogs.h
         app.rc
 )

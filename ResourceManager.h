@@ -6,25 +6,16 @@
 #define REMINDER_RESOURCEMANAGER_H
 
 #include <QMainWindow>
-#include <QClipboard>
-#include <QMainWindow>
 #include <QTextEdit>
-#include <QKeySequence>
-#include <QShortcut>
 #include <QListWidget>
 #include <QMenu>
 #include <QAction>
-#include <QVBoxLayout>
-#include <QPushButton>
-#include <QDragEnterEvent>
 #include <QDropEvent>
-#include <QMimeData>
 #include <QFileDialog>
 #include <QImage>
-#include <QLabel>
-#include <QLineEdit>
 #include <QHotKey>
 #include "ClipboardItemWidget.h"
+#include <QVBoxLayout>
 
 
 class ResourceManager : public QMainWindow {
@@ -35,9 +26,8 @@ public:
 
     ~ResourceManager() override;
 
-    // 设置是否开机自启
+    // 开机自启动
     void setAutoStart(bool enable);
-    // 检查当前是否已经开启了开机自启
     bool checkAutoStart();
 
 protected:
@@ -71,13 +61,10 @@ private:
     QVBoxLayout *historyLayout;
     QListWidget *listWidget;
 
-
     void setstyle();
-
     void positionToTopRight();
     void displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag);
     void addHistoryItem(const QString &text,const QImage &image);
-
     void loadHistory();
 
 private slots:

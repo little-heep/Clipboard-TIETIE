@@ -5,6 +5,8 @@
 // You may need to build the project (run Qt uic code generator) to get "ui_KeyRecognition.h" resolved
 
 #include "KeyRecognition.h"
+#include <QKeyEvent>
+#include <QKeySequence>
 
 
 KeyRecognition::KeyRecognition(QWidget *parent) : QLineEdit(parent){
@@ -23,7 +25,7 @@ KeyRecognition::KeyRecognition(QWidget *parent) : QLineEdit(parent){
                 color: #333;
             }
             QLineEdit:focus {
-                border: 2px solid #0078D4; /* 激活录制时变蓝色 */
+                border: 2px solid #0078D4;
                 background-color: #FFFFFF;
             }
         )");
@@ -47,7 +49,7 @@ void KeyRecognition::keyPressEvent(QKeyEvent *event){
 
     // 组合成快捷键序列
     QKeySequence seq(modifiers | key);
-    setText(seq.toString()); // 显示出来，例如 "Ctrl+Alt+V"
+    setText(seq.toString());
 
     // 失去焦点，表示录制完成
     clearFocus();

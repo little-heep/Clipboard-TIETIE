@@ -8,10 +8,14 @@
 #include "DatabaseManager.h"
 #include <QApplication>
 #include <QFile>
-#include <QDebug>
 #include <QGraphicsDropShadowEffect>
 #include <QScrollBar>
 #include <QSettings>
+#include <QClipboard>
+#include <QKeySequence>
+#include <QShortcut>
+#include <QVBoxLayout>
+#include <QPushButton>
 
 #include "MyDialogs.h"
 #ifdef Q_OS_WIN
@@ -24,18 +28,18 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
     positionToTopRight();
     setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint);
 
-    // UI Setup
+    // 布局设计
     QWidget *centralWidget = new QWidget(this);
     QVBoxLayout *mainlayout = new QVBoxLayout(centralWidget);
 
-    //上部：标题＋搜索框
+    //上部：标题＋搜索框＋设置
     topWidget = new QWidget();
     topLayout = new QVBoxLayout(topWidget);
     titleLabel = new QLabel();
     QHBoxLayout *hlayout = new QHBoxLayout();
     serchLabel = new QLineEdit();
-    serchLabel->setPlaceholderText("⌕ /t+搜索标签...");  // 提示文字
-    serchLabel->setClearButtonEnabled(true);       // 启用 Qt 自带的小叉清空按钮
+    serchLabel->setPlaceholderText("⌕ /t+搜索标签...");
+    serchLabel->setClearButtonEnabled(true);
     connect(serchLabel, &QLineEdit::textChanged, this, &ResourceManager::onSearchTextChanged);
     settingbtn=new QPushButton();
     hlayout->addWidget(serchLabel);
@@ -77,7 +81,6 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
         margin: 5px 10px;
     }
     )");
-
     settingbtn->setMenu(settingsMenu);
     connect(actionClearHistory, &QAction::triggered, this, &ResourceManager::onClearAll);
     connect(actionExit, &QAction::triggered, qApp, &QApplication::quit);
@@ -97,7 +100,7 @@ ResourceManager::ResourceManager(QWidget *parent) : QMainWindow(parent) {
 
     // 热键
     QSettings settings;
-    QString savedKey = settings.value("hotkey", "Ctrl+N").toString(); // 默认为 Ctrl+N
+    QString savedKey = settings.value("hotkey", "Ctrl+N").toString();
     hotkey = new QHotkey(QKeySequence(savedKey), true, this);
     connect(hotkey, &QHotkey::activated, this, &ResourceManager::toggleWindow);
     // 增加内容
@@ -120,10 +123,10 @@ void ResourceManager::setstyle() {
     topWidget->setMinimumHeight(70);
     topWidget->setStyleSheet("border-image: url(:/image/title.png) 0 stretch stretch; background-color:none;");
     QGraphicsDropShadowEffect *topshadow = new QGraphicsDropShadowEffect(topWidget);
-    topshadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
-    topshadow->setXOffset(3);              // 水平偏移：正数向右
-    topshadow->setYOffset(4);              // 垂直偏移：正数向下（模拟光源在上方）
-    topshadow->setColor(QColor(0, 0, 0, 200));  // 黑色半透明（80/255 透明度，建议 60~120）
+    topshadow->setBlurRadius(12);
+    topshadow->setXOffset(3);
+    topshadow->setYOffset(4);
+    topshadow->setColor(QColor(0, 0, 0, 200));
     topWidget->setGraphicsEffect(topshadow);
 
     topLayout->setSpacing(0);
@@ -164,68 +167,61 @@ void ResourceManager::setstyle() {
 
     historyArea->setStyleSheet("border-image: url(:/image/background.png) 0 stretch stretch; background-color:none;");
     QGraphicsDropShadowEffect *bottonshadow = new QGraphicsDropShadowEffect(historyArea);
-    bottonshadow->setBlurRadius(12);          // 模糊半径：越大越柔和（推荐 8~15）
-    bottonshadow->setXOffset(3);              // 水平偏移：正数向右
-    bottonshadow->setYOffset(4);              // 垂直偏移：正数向下（模拟光源在上方）
-    bottonshadow->setColor(QColor(0, 0, 0, 200));  // 黑色半透明（80/255 透明度，建议 60~120）
+    bottonshadow->setBlurRadius(12);
+    bottonshadow->setXOffset(3);
+    bottonshadow->setYOffset(4);
+    bottonshadow->setColor(QColor(0, 0, 0, 200));
     historyArea->setGraphicsEffect(bottonshadow);
-    historyLayout->setContentsMargins(8, 13, 8, 8);     // 四周留点边距，看起来更像卡片列表
-    historyLayout->setSpacing(15);  // 项之间的垂直间距
+    historyLayout->setContentsMargins(8, 13, 8, 8);
+    historyLayout->setSpacing(15);
     listWidget->setStyleSheet("border-image:none;background-color: rgb(255, 255, 255);");
     listWidget->setSpacing(10);
     listWidget->verticalScrollBar()->setStyleSheet(
-    // 1. 整体轨道背景：设置为透明或极浅灰，宽度 8px
+
     "QScrollBar:vertical {"
     "    background: transparent;"
     "    width: 15px;"
     "    margin: 3px 3px 3px 3px;"
     "}"
-    // 2. 滑块（中间那个条）：圆角 4px，深灰色
     "QScrollBar::handle:vertical {"
     "    background: #000000;"
     "    min-height: 30px;"
     "    border-radius: 4px;"
     "}"
-    // 3. 鼠标悬停在滑块上时：颜色加深
     "QScrollBar::handle:vertical:hover {"
     "    background: #a0a0a0;"
     "}"
-    // 4. 隐藏顶部的“向上箭头”按钮
     "QScrollBar::sub-line:vertical {"
     "    height: 0px;"
     "}"
-    // 5. 隐藏底部的“向下箭头”按钮
     "QScrollBar::add-line:vertical {"
     "    height: 0px;"
     "}"
-    // 6. 轨道剩余部分（滑块上方和下方）：透明
     "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {"
     "    background: transparent;"
     "}"
     );
 }
 
+/* 使窗口处于右上方 */
 void ResourceManager::positionToTopRight()
 {
     // 获取窗口所属屏幕（多屏情况下更准确）
     QScreen *screen = this->screen();
     if (!screen) return;
-
     // 屏幕可用区域（排除任务栏、 docked 面板等）
     QRect available = screen->availableGeometry();
-
     // 窗口自身大小
     int w = this->width();
     int h = this->height();
-
     // 计算右上角坐标
     int x = available.right()  - w + 1;    // right() 是包含边界的值
     int y = available.top();               // top() 通常为 0（除非有顶部任务栏）
 
-    // 移动窗口（注意：最好在窗口已经 resize 好之后调用）
     this->move(x, y);
 }
 
+/* 热键功能 */
 void ResourceManager::toggleWindow() {
     if (isVisible()) {
         hide();
@@ -234,18 +230,17 @@ void ResourceManager::toggleWindow() {
     }
 }
 
+/*粘贴功能*/
 void ResourceManager::copy() {
     QListWidgetItem *item = listWidget->currentItem();
     if (!item) return;
 
     QString text = item->data(Qt::UserRole).toString();
     QImage image = item->data(Qt::UserRole + 1).value<QImage>();
-    // 如果都没有内容，直接返回
     if (text.isEmpty() && image.isNull()) return;
 
-    // 2. 将内容放入系统剪贴板（必须屏蔽信号，防止自己的程序又把这条记录抓取一遍）
+    // 将内容放入系统剪贴板（必须屏蔽信号，防止自己的程序又把这条记录抓取一遍）
     clipboard->blockSignals(true);
-    // 判断优先放入图片还是文字
     if (!image.isNull()) {
         clipboard->setImage(image); // 放入图片
     } else {
@@ -253,22 +248,19 @@ void ResourceManager::copy() {
     }
     clipboard->blockSignals(false);
 
-    // 3. 隐藏当前窗口。这一步极其关键！
-    // 隐藏后，Windows 会自动把焦点还给上一个处于激活状态的窗口（比如你刚才正在打字的 Word）
+    // 隐藏当前窗口。隐藏后，Windows 会自动把焦点还给上一个处于激活状态的窗口
     this->hide();
 
-    // 4. 模拟按下 Ctrl + V
+    // 模拟按下 Ctrl + V
 #ifdef Q_OS_WIN
-    // 稍微延时一下，等待 Windows 完成焦点切换（50~100毫秒一般足够）
+    // 稍微延时一下，等待 Windows 完成焦点切换
     Sleep(80);
 
-    // 模拟按下 Ctrl 键
+    //按下
     keybd_event(VK_CONTROL, 0, 0, 0);
-    // 模拟按下 V 键
     keybd_event('V', 0, 0, 0);
-    // 模拟释放 V 键
+    //松开
     keybd_event('V', 0, KEYEVENTF_KEYUP, 0);
-    // 模拟释放 Ctrl 键
     keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
 #endif
 
@@ -276,26 +268,23 @@ void ResourceManager::copy() {
     listWidget->clearSelection();
 }
 
-
+//从系统剪贴板复制内容到此软件
 void ResourceManager::onClipboardChanged() {
     QString newText = clipboard->text();
     QImage newImage = clipboard->image();
 
-    // 1. 如果都没内容，直接返回
     if (newText.isEmpty() && newImage.isNull()) {
         return;
     }
 
-    // 2. 防抖与短时间重复过滤 (解决 Windows 复制一次触发多次信号的问题)
-    // 直接检查列表最顶部的元素，如果和当前剪贴板完全一样，直接丢弃
+    // 防抖与短时间重复过滤 直接检查列表最顶部的元素，如果和当前剪贴板完全一样，直接丢弃
     if (listWidget->count() > 0) {
         QListWidgetItem *topItem = listWidget->item(0);
-        // 注意：必须用 data(Qt::UserRole) 来获取你存入的文本
         QString topText = topItem->data(Qt::UserRole).toString();
         QImage topImage = topItem->data(Qt::UserRole + 1).value<QImage>();
 
         bool textSame = (!newText.isEmpty() && newText == topText);
-        // 对于图片，简单对比尺寸防止连发即可（逐像素对比太耗时）
+        // 对于图片，简单对比尺寸防止连发即可
         bool imageSame = (!newImage.isNull() && !topImage.isNull()
                           && newImage.size() == topImage.size());
 
@@ -304,15 +293,13 @@ void ResourceManager::onClipboardChanged() {
         }
     }
 
-    // 3. 全局历史去重 (如果复制了以前复制过的旧内容，把旧的删掉，把新的置顶)
+    //  全局历史去重 (如果复制了以前复制过的旧内容，把旧的删掉，把新的置顶)
     if (!newText.isEmpty()) {
         for (int i = 0; i < listWidget->count(); ++i) {
             QListWidgetItem *item = listWidget->item(i);
-            QString itemText = item->data(Qt::UserRole).toString(); // 正确的获取方式
+            QString itemText = item->data(Qt::UserRole).toString();
 
             if (itemText == newText) {
-                // 找到了旧的重复项。必须调用你写好的 onDeleteRecord，
-                // 这样才能同时从 数据库 和 UI 中彻底删除旧记录！
                 auto *widget = qobject_cast<ClipboardItemWidget*>(listWidget->itemWidget(item));
                 if (widget) {
                     onDeleteRecord(widget->getRecordId());
@@ -322,17 +309,17 @@ void ResourceManager::onClipboardChanged() {
         }
     }
 
-    // 4. 将新内容添加到界面和数据库
+    // 将新内容添加到界面和数据库
     addHistoryItem(newText, newImage);
 }
 
+/* 展示一条记录 */
 void ResourceManager::displayExistingRecord(int id, const QString &text, const QImage &image, const QDateTime &time, const QString &tag)
 {
     auto *item = new QListWidgetItem();
     item->setData(Qt::UserRole, text);
     item->setData(Qt::UserRole + 1, image);
     item->setData(Qt::UserRole + 2, tag);
-    // 历史记录加载建议：因为 SQL 是 ASC 排序，新解析出来的放在最上面
     listWidget->insertItem(0, item);
 
     auto *itemWidget = new ClipboardItemWidget(id, text, image, time, tag);
@@ -344,35 +331,34 @@ void ResourceManager::displayExistingRecord(int id, const QString &text, const Q
     listWidget->scrollToTop();
 }
 
+/* 添加一条新纪录 */
 void ResourceManager::addHistoryItem(const QString &text,const QImage &image)
 {
     QDateTime now = QDateTime::currentDateTime();
     QString initialTag = "无";
-
-    // 1. 存入数据库
+    //存数据库
     int recordId = DatabaseManager::instance().addRecord(text, image, now, initialTag);
     if (recordId == -1) return;
-
-    // 2. 调用展示逻辑
+    //展示
     displayExistingRecord(recordId, text, image, now, initialTag);
 }
 
+/* 删除一条记录：ui和数据库 */
 void ResourceManager::onDeleteRecord(int recordId)
 {
     if (DatabaseManager::instance().deleteRecord(recordId)) {
-        // 遍历找到对应的 Item 并删除
         for (int i = 0; i < listWidget->count(); ++i) {
             QListWidgetItem *item = listWidget->item(i);
-            // 获取关联的 Widget
             auto *widget = qobject_cast<ClipboardItemWidget*>(listWidget->itemWidget(item));
             if (widget && widget->getRecordId() == recordId) {
-                delete listWidget->takeItem(i); // 真正从列表移除并释放内存
+                delete listWidget->takeItem(i);
                 break;
             }
         }
     }
 }
 
+/* 更新一条记录的标签：ui和数据库 */
 void ResourceManager::onTagUpdated(int recordId, const QString &newTag)
 {
     DatabaseManager::instance().updateTag(recordId, newTag);
@@ -388,24 +374,26 @@ void ResourceManager::onTagUpdated(int recordId, const QString &newTag)
     }
 }
 
+/* 加载全部历史记录 */
 void ResourceManager::loadHistory()
 {
-    // 1. 从数据库取出所有数据
     QList<ClipboardRecord> history = DatabaseManager::instance().getAllRecords();
 
-    // 2. 遍历并显示到界面
     for (const auto &rec : history) {
         displayExistingRecord(rec.id, rec.text, rec.image, rec.time, rec.tag);
     }
 }
 
+/* 清除全部记录 */
 void ResourceManager::onClearAll() {
     listWidget->clear();
     DatabaseManager::instance().clearAll();
 }
+
+/* 偏好设置更新：是否自启动，热键选择 */
 void ResourceManager::onPreferenceUpdated() {
     SettingsDialog dlg(this);
-    // 先显示当前热键
+    // 显示当前热键
     dlg.keyEdit->setText(hotkey->shortcut().toString());
     // 初始化开机自启 CheckBox 的勾选状态
     dlg.autoStartCheckBox->setChecked(this->checkAutoStart());
@@ -413,25 +401,24 @@ void ResourceManager::onPreferenceUpdated() {
     if (dlg.exec() == QDialog::Accepted) {
         QString newKey = dlg.keyEdit->text();
         if (newKey.isEmpty()) return;
-
-        // 1. 更新 QHotkey
+        // 更新 QHotkey
         hotkey->setShortcut(QKeySequence(newKey), true);
-
-        // 2. 保存到注册表/配置文件
         QSettings settings;
         settings.setValue("hotkey", newKey);
-
-        qDebug() << "热键已更新为:" << newKey;
 
         // 保存开机自启设置
         bool isAutoStart = dlg.autoStartCheckBox->isChecked();
         this->setAutoStart(isAutoStart);
     }
 }
+
+/* 关于dialog */
 void ResourceManager::onAbout() {
     AboutDialog dlg(this);
     dlg.exec();
 }
+
+/* 窗口移动三个函数 */
 void ResourceManager::mousePressEvent(QMouseEvent *event)
 {
     // 只有鼠标左键按下时才允许拖动
@@ -465,12 +452,12 @@ void ResourceManager::mouseReleaseEvent(QMouseEvent *event)
     }
 }
 
+/* 注册表设置是否开机自启动 */
 void ResourceManager::setAutoStart(bool enable) {
     // 注册表启动项的路径
     QString regPath = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     QSettings settings(regPath, QSettings::NativeFormat);
 
-    // 你程序的唯一标识名称（英文字母即可）
     QString appName = "TIETIE_App";
 
     if (enable) {
@@ -478,30 +465,26 @@ void ResourceManager::setAutoStart(bool enable) {
         QString appPath = QCoreApplication::applicationFilePath();
         // 将路径中的 '/' 替换为 Windows 标准的 '\'
         appPath = QDir::toNativeSeparators(appPath);
-
-        // 关键：如果路径中带有空格，注册表必须要用双引号把路径括起来，否则开机会报错
         QString value = "\"" + appPath + "\" --silent";
-
         // 写入注册表
         settings.setValue(appName, value);
-        qDebug() << "已开启开机自启:" << value;
     } else {
         // 从注册表中移除
         settings.remove(appName);
-        qDebug() << "已关闭开机自启";
     }
 }
 
+/* 检查用户选择 */
 bool ResourceManager::checkAutoStart() {
     QString regPath = "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
     QSettings settings(regPath, QSettings::NativeFormat);
-
     QString appName = "TIETIE_App";
 
     // 检查注册表中是否存在这个键值
     return settings.contains(appName);
 }
 
+/* 实时搜索 */
 void ResourceManager::onSearchTextChanged(const QString &searchText)
 {
     // 判断是否是纯标签搜索 (以 "/t" 开头)
@@ -515,11 +498,9 @@ void ResourceManager::onSearchTextChanged(const QString &searchText)
         keyword = searchText.trimmed();
     }
 
-    // 遍历所有的列表项
     for (int i = 0; i < listWidget->count(); ++i) {
         QListWidgetItem *item = listWidget->item(i);
-
-        // 取出我们之前绑定的文本和标签
+        // 取出之前绑定的文本和标签
         QString itemText = item->data(Qt::UserRole).toString();
         QString itemTag = item->data(Qt::UserRole + 2).toString();
 
@@ -538,8 +519,7 @@ void ResourceManager::onSearchTextChanged(const QString &searchText)
             match = itemText.contains(keyword, Qt::CaseInsensitive) ||
                     itemTag.contains(keyword, Qt::CaseInsensitive);
         }
-
-        // 核心：如果不匹配就隐藏，匹配就显示
+        //如果不匹配就隐藏，匹配就显示
         item->setHidden(!match);
     }
 }

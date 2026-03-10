@@ -32,7 +32,7 @@ DatabaseManager::~DatabaseManager()
 
 bool DatabaseManager::openDatabase(const QString &dbPath)
 {
-    // 1. 获取系统标准的数据存放路径 (AppData/Roaming/组织名/应用名)
+    // 1. 获取系统标准的数据存放路径 (AppData/Roaming/应用名)
     QString dataLocation = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
     // 2. 确保目录存在，如果不存在则自动创建
@@ -42,16 +42,14 @@ bool DatabaseManager::openDatabase(const QString &dbPath)
     }
 
     // 3. 提取传入的文件名，并与 AppData 目录拼接成绝对路径
-    // 这样即使外部传入的是相对路径 "tietie.db"，也会变成 "C:/Users/用户名/AppData/Roaming/.../tietie.db"
     QFileInfo fileInfo(dbPath);
     QString absoluteDbPath = dir.absoluteFilePath(fileInfo.fileName());
 
     // 4. 连接数据库
     db = QSqlDatabase::addDatabase("QSQLITE", "clipboard_conn");
-    db.setDatabaseName(absoluteDbPath); // 使用绝对路径！！！
+    db.setDatabaseName(absoluteDbPath);
 
     if (!db.open()) {
-        qWarning() << "数据库打开失败:" << db.lastError().text();
         return false;
     }
     return true;
@@ -85,7 +83,6 @@ int DatabaseManager::addRecord(const QString &text, const QImage &image, const Q
     if (!image.isNull()) {
         QBuffer buffer(&bytes);
         buffer.open(QIODevice::WriteOnly);
-        // 建议保存为 PNG 格式以保留透明度并保证无损
         image.save(&buffer, "PNG");
     }
 
@@ -105,7 +102,6 @@ int DatabaseManager::addRecord(const QString &text, const QImage &image, const Q
     query.addBindValue(tag);
 
     if (!query.exec()) {
-        qWarning() << "插入失败:" << query.lastError().text();
         return -1;
     }
 
@@ -122,7 +118,6 @@ bool DatabaseManager::updateTag(int recordId, const QString &newTag)
     query.addBindValue(recordId);
 
     if (!query.exec()) {
-        qWarning() << "更新标签失败:" << query.lastError().text();
         return false;
     }
     return true;
@@ -137,7 +132,6 @@ bool DatabaseManager::deleteRecord(int recordId)
     query.addBindValue(recordId);
 
     if (!query.exec()) {
-        qWarning() << "删除失败:" << query.lastError().text();
         return false;
     }
     return true;
@@ -145,7 +139,6 @@ bool DatabaseManager::deleteRecord(int recordId)
 
 bool DatabaseManager::clearAll() {
     if (!db.isOpen()) {
-        qWarning() << "数据库未打开";
         return false;
     }
     QSqlQuery query(db);
@@ -154,7 +147,6 @@ bool DatabaseManager::clearAll() {
     db.transaction();
     // 删除所有数据
     if (!query.exec("DELETE FROM clipboard_history")) {
-        qWarning() << "删除记录失败:" << query.lastError().text();
         db.rollback();
         return false;
     }
@@ -162,7 +154,6 @@ bool DatabaseManager::clearAll() {
     query.exec("DELETE FROM sqlite_sequence WHERE name='clipboard_history'");
     // 提交事务
     if (!db.commit()) {
-        qWarning() << "事务提交失败";
         return false;
     }
     // 释放磁盘空间
@@ -176,7 +167,6 @@ QList<ClipboardRecord> DatabaseManager::getAllRecords() {
     QSqlQuery query(db);
 
     if (!query.exec("SELECT id, content, image_data, created_at, tag FROM clipboard_history ORDER BY created_at ASC")) {
-        qDebug() << "查询失败：" << query.lastError().text();
         return records;
     }
 

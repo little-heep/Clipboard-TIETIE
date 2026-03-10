@@ -6,9 +6,6 @@
 #define REMINDER_KEYRECOGNITION_H
 
 #include <QLineEdit>
-#include <QKeyEvent>
-#include <QKeySequence>
-
 class KeyRecognition : public QLineEdit {
     Q_OBJECT
 
