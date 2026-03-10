@@ -21,6 +21,10 @@ find_package(qhotkey
         REQUIRED
 )
 
+if (WIN32)
+    set(CMAKE_WIN32_EXECUTABLE ON)
+endif()
+
 add_executable(TIETIE main.cpp
         ResourceManager.cpp
         ResourceManager.h
